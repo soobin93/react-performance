@@ -1,46 +1,22 @@
 // useMemo for expensive calculations
 // http://localhost:3000/isolated/exercise/02.js
 
-import * as React from 'react'
-import {useCombobox} from '../use-combobox'
-import {getItems} from '../filter-cities'
-import {useForceRerender} from '../utils'
+import React, { useMemo, useState } from 'react';
+import { useCombobox } from '../use-combobox';
+import { getItems } from '../filter-cities';
+import { useForceRerender } from '../utils';
 
-function Menu({
-  items,
-  getMenuProps,
-  getItemProps,
-  highlightedIndex,
-  selectedItem,
-}) {
-  return (
-    <ul {...getMenuProps()}>
-      {items.map((item, index) => (
-        <ListItem
-          key={item.id}
-          getItemProps={getItemProps}
-          item={item}
-          index={index}
-          selectedItem={selectedItem}
-          highlightedIndex={highlightedIndex}
-        >
-          {item.name}
-        </ListItem>
-      ))}
-    </ul>
-  )
-}
-
-function ListItem({
+const ListItem = ({
   getItemProps,
   item,
   index,
   selectedItem,
   highlightedIndex,
   ...props
-}) {
-  const isSelected = selectedItem?.id === item.id
-  const isHighlighted = highlightedIndex === index
+}) => {
+  const isSelected = selectedItem?.id === item.id;
+  const isHighlighted = highlightedIndex === index;
+
   return (
     <li
       {...getItemProps({
@@ -53,16 +29,38 @@ function ListItem({
         ...props,
       })}
     />
-  )
-}
+  );
+};
 
-function App() {
-  const forceRerender = useForceRerender()
-  const [inputValue, setInputValue] = React.useState('')
+const Menu = ({
+  items,
+  getMenuProps,
+  getItemProps,
+  highlightedIndex,
+  selectedItem,
+}) => (
+  <ul {...getMenuProps()}>
+    {items.map((item, index) => (
+      <ListItem
+        key={item.id}
+        getItemProps={getItemProps}
+        item={item}
+        index={index}
+        selectedItem={selectedItem}
+        highlightedIndex={highlightedIndex}
+      >
+        {item.name}
+      </ListItem>
+    ))}
+  </ul>
+);
 
-  // 🐨 wrap getItems in a call to `React.useMemo`
-  const allItems = getItems(inputValue)
-  const items = allItems.slice(0, 100)
+const App = () => {
+  const forceRerender = useForceRerender();
+  const [inputValue, setInputValue] = useState('');
+
+  const allItems = useMemo(() => getItems(inputValue), [inputValue]);
+  const items = allItems.slice(0, 100);
 
   const {
     selectedItem,
@@ -84,7 +82,7 @@ function App() {
           : 'Selection Cleared',
       ),
     itemToString: item => (item ? item.name : ''),
-  })
+  });
 
   return (
     <div className="city-app">
@@ -106,7 +104,7 @@ function App() {
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;
