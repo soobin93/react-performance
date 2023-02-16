@@ -1,72 +1,66 @@
 // React.memo for reducing unnecessary re-renders
 // http://localhost:3000/isolated/exercise/03.js
 
-import * as React from 'react'
-import {useCombobox} from '../use-combobox'
-import {getItems} from '../workerized-filter-cities'
-import {useAsync, useForceRerender} from '../utils'
+import React, { memo, useEffect, useState } from 'react';
+import { useCombobox } from '../use-combobox';
+import { getItems } from '../workerized-filter-cities';
+import { useAsync, useForceRerender } from '../utils';
 
-function Menu({
+const Menu = memo(({
   items,
   getMenuProps,
   getItemProps,
   highlightedIndex,
   selectedItem,
-}) {
-  return (
-    <ul {...getMenuProps()}>
-      {items.map((item, index) => (
-        <ListItem
-          key={item.id}
-          getItemProps={getItemProps}
-          item={item}
-          index={index}
-          selectedItem={selectedItem}
-          highlightedIndex={highlightedIndex}
-        >
-          {item.name}
-        </ListItem>
-      ))}
-    </ul>
-  )
-}
-// 🐨 Memoize the Menu here using React.memo
+}) => (
+  <ul {...getMenuProps()}>
+    {items.map((item, index) => (
+      <ListItem
+        key={item.id}
+        getItemProps={getItemProps}
+        item={item}
+        index={index}
+        isSelected={selectedItem?.id === item.id}
+        isHighlighted={highlightedIndex === index}
+      >
+        {item.name}
+      </ListItem>
+    ))}
+  </ul>
+));
 
-function ListItem({
+const ListItem = memo(({
   getItemProps,
   item,
   index,
-  selectedItem,
-  highlightedIndex,
+  isSelected,
+  isHighlighted,
   ...props
-}) {
-  const isSelected = selectedItem?.id === item.id
-  const isHighlighted = highlightedIndex === index
-  return (
-    <li
-      {...getItemProps({
-        index,
-        item,
-        style: {
-          fontWeight: isSelected ? 'bold' : 'normal',
-          backgroundColor: isHighlighted ? 'lightgray' : 'inherit',
-        },
-        ...props,
-      })}
-    />
-  )
-}
-// 🐨 Memoize the ListItem here using React.memo
+}) => (
+  <li
+    {...getItemProps({
+      index,
+      item,
+      style: {
+        fontWeight: isSelected ? 'bold' : 'normal',
+        backgroundColor: isHighlighted ? 'lightgray' : 'inherit',
+      },
+      ...props,
+    })}
+  />
+));
 
-function App() {
-  const forceRerender = useForceRerender()
-  const [inputValue, setInputValue] = React.useState('')
+const App = () => {
+  const forceRerender = useForceRerender();
+  const [inputValue, setInputValue] = useState('');
 
   const {data: allItems, run} = useAsync({data: [], status: 'pending'})
-  React.useEffect(() => {
+
+  useEffect(() => {
     run(getItems(inputValue))
-  }, [inputValue, run])
-  const items = allItems.slice(0, 100)
+  }, [inputValue, run]);
+
+  const items = allItems.slice(0, 100);
 
   const {
     selectedItem,
@@ -88,7 +82,7 @@ function App() {
           : 'Selection Cleared',
       ),
     itemToString: item => (item ? item.name : ''),
-  })
+  });
 
   return (
     <div className="city-app">
@@ -101,6 +95,7 @@ function App() {
             &#10005;
           </button>
         </div>
+
         <Menu
           items={items}
           getMenuProps={getMenuProps}
@@ -110,10 +105,10 @@ function App() {
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;
 
 /*
 eslint
