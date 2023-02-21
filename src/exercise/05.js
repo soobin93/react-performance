@@ -1,7 +1,7 @@
 // Optimize context value
 // http://localhost:3000/isolated/exercise/05.js
 
-import React, { createContext, memo, useContext, useMemo, useReducer } from 'react';
+import React, { createContext, memo, useContext, useReducer } from 'react';
 import {
   useForceRerender,
   useDebouncedState,
