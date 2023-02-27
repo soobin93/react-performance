@@ -1,77 +1,103 @@
 // Fix "perf death by a thousand cuts"
 // http://localhost:3000/isolated/exercise/06.js
 
-import * as React from 'react'
+import React, { createContext, forwardRef, memo, useContext, useReducer } from 'react';
 import {
   useForceRerender,
   useDebouncedState,
   AppGrid,
   updateGridState,
   updateGridCellState,
-} from '../utils'
+} from '../utils';
 
-const AppStateContext = React.createContext()
-const AppDispatchContext = React.createContext()
+const AppStateContext = createContext();
+const AppDispatchContext = createContext();
+const DogContext = createContext();
 
 const initialGrid = Array.from({length: 100}, () =>
   Array.from({length: 100}, () => Math.random() * 100),
-)
+);
 
-function appReducer(state, action) {
+const appReducer = (state, action) => {
   switch (action.type) {
-    // we're no longer managing the dogName state in our reducer
-    // 💣 remove this case
-    case 'TYPED_IN_DOG_INPUT': {
-      return {...state, dogName: action.dogName}
-    }
     case 'UPDATE_GRID_CELL': {
-      return {...state, grid: updateGridCellState(state.grid, action)}
+      return { ...state, grid: updateGridCellState(state.grid, action) };
     }
     case 'UPDATE_GRID': {
-      return {...state, grid: updateGridState(state.grid)}
+      return { ...state, grid: updateGridState(state.grid) };
     }
     default: {
-      throw new Error(`Unhandled action type: ${action.type}`)
+      throw new Error(`Unhandled action type: ${action.type}`);
     }
   }
-}
+};
 
-function AppProvider({children}) {
-  const [state, dispatch] = React.useReducer(appReducer, {
-    // 💣 remove the dogName state because we're no longer managing that
-    dogName: '',
+const dogReducer = (state, action) => {
+  switch (action.type) {
+    case 'TYPED_IN_DOG_INPUT': {
+      return { ...state, dogName: action.dogName };
+    }
+    default: {
+      throw new Error(`Unhandled action type: ${action.type}`);
+    }
+  }
+};
+
+const AppProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(appReducer, {
     grid: initialGrid,
-  })
+  });
+
   return (
     <AppStateContext.Provider value={state}>
       <AppDispatchContext.Provider value={dispatch}>
         {children}
       </AppDispatchContext.Provider>
     </AppStateContext.Provider>
+  );
+};
+
+const DogProvider = ({ children }) => {
+  const [state, dispatch] = useReducer(dogReducer, {
+    dogName: '',
+  });
+
+  return (
+    <DogContext.Provider value={[state, dispatch]}>
+      {children}
+    </DogContext.Provider>
   )
-}
+};
 
-function useAppState() {
-  const context = React.useContext(AppStateContext)
+const useAppState = () => {
+  const context = useContext(AppStateContext);
   if (!context) {
-    throw new Error('useAppState must be used within the AppProvider')
+    throw new Error('useAppState must be used within the AppProvider');
   }
-  return context
-}
+  return context;
+};
 
-function useAppDispatch() {
-  const context = React.useContext(AppDispatchContext)
+const useAppDispatch = () => {
+  const context = useContext(AppDispatchContext);
   if (!context) {
-    throw new Error('useAppDispatch must be used within the AppProvider')
+    throw new Error('useAppDispatch must be used within the AppProvider');
   }
-  return context
-}
+  return context;
+};
 
-function Grid() {
-  const dispatch = useAppDispatch()
-  const [rows, setRows] = useDebouncedState(50)
-  const [columns, setColumns] = useDebouncedState(50)
-  const updateGridData = () => dispatch({type: 'UPDATE_GRID'})
+const useDogState = () => {
+  const context = useContext(DogContext);
+  if (!context) {
+    throw new Error('useDogState must be used within the DogProvider');
+  }
+  return context;
+};
+
+const Grid = memo(() => {
+  const dispatch = useAppDispatch();
+  const [rows, setRows] = useDebouncedState(50);
+  const [columns, setColumns] = useDebouncedState(50);
+  const updateGridData = () => dispatch({ type: 'UPDATE_GRID' });
   return (
     <AppGrid
       onUpdateGrid={updateGridData}
@@ -81,15 +107,24 @@ function Grid() {
       handleColumnsChange={setColumns}
       Cell={Cell}
     />
-  )
-}
-Grid = React.memo(Grid)
+  );
+});
 
-function Cell({row, column}) {
-  const state = useAppState()
-  const cell = state.grid[row][column]
-  const dispatch = useAppDispatch()
-  const handleClick = () => dispatch({type: 'UPDATE_GRID_CELL', row, column})
+const withStateSlice = (Component, slice) => {
+  const MemoComponent = memo(Component);
+
+  const Wrapper = (props, ref) => {
+    const state = useAppState();
+    return <MemoComponent ref={ref} state={slice(state, props)} {...props} />
+  };
+
+  Wrapper.displayName = `withStateSlice(${Component.displayName || Component.name})`;
+  return memo(forwardRef(Wrapper));
+};
+
+let Cell = ({ state: cell, row, column }) => {
+  const dispatch = useAppDispatch();
+  const handleClick = () => dispatch({ type: 'UPDATE_GRID_CELL', row, column });
   return (
     <button
       className="cell"
@@ -101,22 +136,19 @@ function Cell({row, column}) {
     >
       {Math.floor(cell)}
     </button>
-  )
-}
-Cell = React.memo(Cell)
+  );
+};
 
-function DogNameInput() {
-  // 🐨 replace the useAppState and useAppDispatch with a normal useState here
-  // to manage the dogName locally within this component
-  const state = useAppState()
-  const dispatch = useAppDispatch()
-  const {dogName} = state
+Cell = withStateSlice(Cell, (state, { row, column }) => state.grid[row][column]);
 
-  function handleChange(event) {
-    const newDogName = event.target.value
-    // 🐨 change this to call your state setter that you get from useState
-    dispatch({type: 'TYPED_IN_DOG_INPUT', dogName: newDogName})
-  }
+const DogNameInput = () => {
+  const [state, dispatch] = useDogState();
+  const { dogName } = state;
+
+  const handleChange = (event) => {
+    const newDogName = event.target.value;
+    dispatch({ type: 'TYPED_IN_DOG_INPUT', dogName: newDogName });
+  };
 
   return (
     <form onSubmit={e => e.preventDefault()}>
@@ -133,24 +165,28 @@ function DogNameInput() {
         </div>
       ) : null}
     </form>
-  )
-}
-function App() {
-  const forceRerender = useForceRerender()
+  );
+};
+
+const App = () => {
+  const forceRerender = useForceRerender();
   return (
     <div className="grid-app">
       <button onClick={forceRerender}>force rerender</button>
-      <AppProvider>
-        <div>
+      <div>
+        <DogProvider>
           <DogNameInput />
-          <Grid />
-        </div>
-      </AppProvider>
-    </div>
-  )
-}
+        </DogProvider>
 
-export default App
+        <AppProvider>
+          <Grid />
+        </AppProvider>
+      </div>
+    </div>
+  );
+};
+
+export default App;
 
 /*
 eslint
